@@ -7,7 +7,7 @@ import cs4624.microblog.sentiment.{Bearish, Bullish}
 import cs4624.microblog.{MicroblogAuthor, MicroblogPost}
 import cs4624.microblog.sources.HBaseMicroblogDataSource.Default
 import org.apache.hadoop.hbase.TableName
-import org.apache.hadoop.hbase.client.{Connection, Result, Scan}
+import org.apache.hadoop.hbase.client._
 import org.apache.hadoop.hbase.util.Bytes
 
 import scala.collection.JavaConversions._
@@ -34,10 +34,9 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
                      endTime: OptionalArgument[Instant]): Iterator[MicroblogPost] = {
     val scan = new Scan()
     val realStartTime = startTime.getOrElse(Instant.MIN)
-    val realEndTime = endTime.getOrElse(Instant.MAX)
+    val realEndTime = endTime.getOrElse(Instant.MAX.minusMillis(1L))
+    scan.setTimeRange(realStartTime.toEpochMilli, realEndTime.toEpochMilli + 1)
     hbaseTable.getScanner(scan).iterator().map(resultToMicroblogPost)
-      .filterNot(_.time.isBefore(realStartTime))
-      .filterNot(_.time.isAfter(realEndTime))
   }
 
   private def resultToMicroblogPost(result: Result): MicroblogPost = {
@@ -64,6 +63,23 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
     )
   }
 
+  def write(post: MicroblogPost): Unit = {
+    val put = new Put(Bytes.toBytes(post.id), post.time.toEpochMilli)
+    put.addColumn(baseDataCF, textCQ, Bytes.toBytes(post.text))
+    put.addColumn(baseDataCF, timestampCQ, Bytes.toBytes(post.time.toString))
+    put.addColumn(baseDataCF, judgeCQ, Bytes.toBytes(post.author.id))
+    post.sentiment match {
+      case Some(Bullish) =>
+        put.addColumn(optionsCF, sentimentCQ, Bytes.toBytes("Bullish"))
+      case Some(Bearish) =>
+        put.addColumn(optionsCF, sentimentCQ, Bytes.toBytes("Bearish"))
+      case _ =>
+    }
+    if (post.symbols.nonEmpty) {
+      put.addColumn(optionsCF, symbolCQ, Bytes.toBytes(post.symbols.mkString("::::")))
+    }
+    hbaseTable.put(put)
+  }
 }
 object HBaseMicroblogDataSource {
   sealed trait Table { def name: String }

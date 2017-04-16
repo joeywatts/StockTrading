@@ -4,14 +4,11 @@ import java.time.Instant
 import cs4624.common.{CSV, OptionalArgument}
 import cs4624.microblog.sentiment.{Bearish, Bullish}
 import cs4624.microblog.{MicroblogAuthor, MicroblogPost}
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
 
 /**
   * Created by joeywatts on 3/13/17.
   */
 class CsvMicroblogDataSource(csvFile: String)
-                            (implicit val sc: SparkContext)
   extends MicroblogDataSource {
 
   override def query(startTime: OptionalArgument[Instant],
