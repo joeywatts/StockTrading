@@ -34,7 +34,7 @@ class MovingAverageStrategy(stock: String,
       val dates = mutable.Map[LocalDate, StockPrice]()
       stockPriceDataSource.query(
         symbol = stock,
-        endTime = time
+        endTime = Some(time)
       ).forall(p => {
         val date = LocalDateTime.ofInstant(p.time, ZoneOffset.UTC).toLocalDate
         dates(date) = p

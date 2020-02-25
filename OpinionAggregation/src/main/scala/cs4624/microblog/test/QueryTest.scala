@@ -12,9 +12,10 @@ object QueryTest extends App {
   implicit val con = ConnectionFactory.createConnection()
   val dataSource = new HBaseMicroblogDataSource(Default)
 
-  val start = LocalDate.of(2014, 12, 11).atStartOfDay().toInstant(ZoneOffset.UTC)
-  val end = LocalDate.of(2014, 12, 15).atStartOfDay().toInstant(ZoneOffset.UTC)
+  val start = LocalDate.of(2015, 1, 1).atStartOfDay().toInstant(ZoneOffset.UTC)
+  val end = LocalDate.of(2015, 1, 3).atStartOfDay().toInstant(ZoneOffset.UTC)
 
-  val posts = dataSource.query(startTime = start, endTime = end).filter(_.symbols.contains("VRNG")).foreach(println)
+  val posts = dataSource.query(startTime = Some(start), endTime = Some(end))
+    .foreach(println)
 }
 

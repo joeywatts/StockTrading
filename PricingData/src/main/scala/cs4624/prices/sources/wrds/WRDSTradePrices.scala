@@ -3,7 +3,7 @@ package cs4624.prices.sources.wrds
 import java.time._
 import java.time.format._
 
-import cs4624.common.{OptionalArgument, CSV}
+import cs4624.common.CSV
 import cs4624.prices.StockPrice
 
 import scala.io.Source

@@ -2,7 +2,6 @@ package cs4624.prices.sources
 
 import java.time.Instant
 
-import cs4624.common.OptionalArgument
 import cs4624.prices.StockPrice
 import it.nerdammer.spark.hbase._
 import org.apache.hadoop.hbase.TableName
@@ -60,8 +59,8 @@ class HBaseStockPriceDataSource(val table: HBaseStockPriceDataSource.Table)
   }
 
   override def query(symbol: String,
-                     startTime: OptionalArgument[Instant],
-                     endTime: OptionalArgument[Instant]): Iterator[StockPrice] = {
+                     startTime: Option[Instant],
+                     endTime: Option[Instant]): Iterator[StockPrice] = {
     val scan = new Scan()
     val startTimeMillis = startTime.map(_.toEpochMilli).getOrElse(0L)
     val endTimeMillis = endTime.map(_.toEpochMilli).getOrElse(Long.MaxValue)
@@ -75,8 +74,9 @@ class HBaseStockPriceDataSource(val table: HBaseStockPriceDataSource.Table)
   }
 
   def queryRDD(symbol: String,
-                     startTime: OptionalArgument[Instant],
-                     endTime: OptionalArgument[Instant]): RDD[StockPrice] = {
+    startTime: Option[Instant],
+    endTime: Option[Instant]): RDD[StockPrice] = {
+
     val startTimeMillis = startTime.getOrElse(Instant.MIN).toEpochMilli
     val endTimeMillis = endTime.getOrElse(Instant.MAX).toEpochMilli
     sc.hbaseTable[(String, String)](table.name)

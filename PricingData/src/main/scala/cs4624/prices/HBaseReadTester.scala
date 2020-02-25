@@ -14,7 +14,7 @@ object HBaseReadTester extends App {
 
   implicit val connection = ConnectionFactory.createConnection()
   val priceDataSource = new HBaseStockPriceDataSource(YahooFinance)
-  val endTime = OffsetDateTime.of(2014, 5, 12, 1, 0, 0, 0, ZoneOffset.UTC).toInstant
+  val endTime = OffsetDateTime.of(2015, 5, 12, 1, 0, 0, 0, ZoneOffset.UTC).toInstant
   println(endTime)
   //val prices = priceDataSource.query("AAPL", startTime = OffsetDateTime.of(2014, 2, 10, 0, 0, 0, 0, ZoneOffset.UTC).toInstant, endTime = endTime)
   //prices.foreach(println)

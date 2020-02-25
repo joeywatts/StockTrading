@@ -2,7 +2,6 @@ package cs4624.microblog.sources
 
 import java.time.Instant
 
-import cs4624.common.OptionalArgument
 import cs4624.microblog.sentiment.{Bearish, Bullish}
 import cs4624.microblog.{MicroblogAuthor, MicroblogPost}
 import cs4624.microblog.sources.HBaseMicroblogDataSource.Default
@@ -30,17 +29,25 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
   private val sentimentCQ = Bytes.toBytes("sentiment")
   private val symbolCQ = Bytes.toBytes("symbol")
 
-  override def query(startTime: OptionalArgument[Instant],
-                     endTime: OptionalArgument[Instant]): Iterator[MicroblogPost] = {
+  override def query(startTime: Option[Instant],
+                     endTime: Option[Instant]): Iterator[MicroblogPost] = {
     val scan = new Scan()
-    val realStartTime = startTime.getOrElse(Instant.MIN)
-    val realEndTime = endTime.getOrElse(Instant.MAX.minusMillis(1L))
-    scan.setTimeRange(realStartTime.toEpochMilli, realEndTime.toEpochMilli + 1)
+    startTime match {
+      case Some(time) =>
+        scan.setStartRow(Bytes.toBytes(time.toEpochMilli + "-"))
+      case _ =>
+    }
+    endTime match {
+      case Some(time) =>
+        scan.setStopRow(Bytes.toBytes((time.toEpochMilli + 1) + "-"))
+      case _ =>
+    }
     hbaseTable.getScanner(scan).iterator().map(resultToMicroblogPost)
   }
 
   private def resultToMicroblogPost(result: Result): MicroblogPost = {
     val row = Bytes.toString(result.getRow)
+    val id = row.substring(row.indexOf("-") + 1)
     val timestamp = Bytes.toString(result.getValue(baseDataCF, timestampCQ))
     val text = Bytes.toString(result.getValue(baseDataCF, textCQ))
     val judge = Bytes.toString(result.getValue(baseDataCF, judgeCQ))
@@ -54,7 +61,7 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
       case _ => Set[String]()
     }
     MicroblogPost(
-      id = row,
+      id = id,
       text = text,
       author = MicroblogAuthor(judge),
       time = Instant.parse(timestamp),
@@ -64,7 +71,7 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
   }
 
   def write(post: MicroblogPost): Unit = {
-    val put = new Put(Bytes.toBytes(post.id), post.time.toEpochMilli)
+    val put = new Put(Bytes.toBytes(post.time.toEpochMilli + "-" + post.id))
     put.addColumn(baseDataCF, textCQ, Bytes.toBytes(post.text))
     put.addColumn(baseDataCF, timestampCQ, Bytes.toBytes(post.time.toString))
     put.addColumn(baseDataCF, judgeCQ, Bytes.toBytes(post.author.id))
@@ -84,6 +91,6 @@ class HBaseMicroblogDataSource(table: HBaseMicroblogDataSource.Table = Default)
 object HBaseMicroblogDataSource {
   sealed trait Table { def name: String }
   case object Default extends Table {
-    override def name = "stocktwits_microblogs"
+    override def name = "stocktwits_timestamped"
   }
 }

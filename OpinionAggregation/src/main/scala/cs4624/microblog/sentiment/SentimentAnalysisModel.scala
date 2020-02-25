@@ -2,6 +2,7 @@ package cs4624.microblog.sentiment
 
 import cs4624.microblog.MicroblogPost
 import cs4624.microblog.sentiment.classification.logisticregression.LogisticRegressionClassification
+import cs4624.microblog.sentiment.classification.svm.SVMClassification
 import cs4624.microblog.sentiment.classification.{ClassificationModel, Classifier}
 import cs4624.microblog.sentiment.featureextraction.word2vec.Word2VecFeatureExtraction
 import cs4624.microblog.sentiment.featureextraction.{FeatureExtractionModel, FeatureExtractor}

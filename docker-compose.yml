@@ -1,0 +1,56 @@
+version: "2"
+services:
+  sbt:
+    image: hseeberger/scala-sbt
+    working_dir: /code
+    command: sbt
+    volumes:
+      - .:/code
+      - ~/.ivy2:/root/.ivy2
+  zookeeper:
+    image: smizy/zookeeper:3.4-alpine
+    command: -server 1 1 vnet
+  hbase_master:
+    image: smizy/hbase:1.2.4-alpine
+    expose: [16000]
+    ports:  [16010]
+    depends_on: ["zookeeper"]
+    environment:
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper:2181
+      - HBASE_ROOT_DIR=hdfs://master:50070/hbase
+      - HADOOP_NAMENODE1_HOSTNAME=master
+      - HBASE_HMASTER1_HOSTNAME=hbase_master
+      - HBASE_REGIONSERVER1_HOSTNAME=hbase_regionserver
+    command: hmaster-1
+  hbase_regionserver:
+    image: smizy/hbase:1.2.4-alpine
+    expose: [16020, 16030]
+    depends_on: ["zookeeper"]
+    environment:
+      - HBASE_ZOOKEEPER_QUORUM=zookeeper:2181
+      - HBASE_ROOT_DIR=hdfs://master:50070/hbase
+      - HADOOP_NAMENODE1_HOSTNAME=master
+      - HBASE_HMASTER1_HOSTNAME=hbase_master
+      - HBASE_REGIONSERVER1_HOSTNAME=hbase_regionserver
+    command: regionserver
+  master:
+    image: singularities/spark:1.6
+    command: start-spark master
+    hostname: master
+    ports:
+      - "6066:6066"
+      - "7070:7070"
+      - "8080:8080"
+      - "50070:50070"
+    volumes:
+      - ./hdfs:/opt/hdfs
+  worker:
+    image: singularities/spark:1.6
+    command: start-spark worker master
+    environment:
+      SPARK_WORKER_CORES: 1
+      SPARK_WORKER_MEMORY: 2g
+    links:
+      - master
+    volumes:
+      - ./hdfs:/opt/hdfs

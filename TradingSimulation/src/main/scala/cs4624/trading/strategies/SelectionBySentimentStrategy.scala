@@ -5,7 +5,6 @@ import cs4624.microblog.sentiment.{Bearish, Bullish, SentimentAnalysisModel}
 import cs4624.portfolio.Portfolio
 import cs4624.prices.sources.StockPriceDataSource
 import cs4624.trading.{TradingEvent, TradingStrategy}
-import cs4624.common.OptionalArgument
 import java.time.{Duration, Instant}
 
 import cs4624.portfolio.error.TransactionError

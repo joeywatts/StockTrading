@@ -44,8 +44,8 @@ class PortfolioSpec extends FlatSpec with Matchers with EitherValues {
     result.left.value.cash should be (BigDecimal("1.0"))
   }
 
-  it should "fail to sell when the cash doesn't cover the transaction fee" in {
-    val portfolio = Portfolio(Instant.now, BigDecimal("6.0"),
+  it should "fail to sell when the portfolio doesn't cover the transaction fee" in {
+    val portfolio = Portfolio(Instant.now, BigDecimal("5.0"),
       Map("AAPL" -> 1), transactionFee = BigDecimal("7.0"))
     val result = portfolio.withSharesSold(Instant.now, "AAPL", 1)
     result should be ('right)

@@ -2,7 +2,6 @@ package cs4624.microblog.sources
 
 import java.time.Instant
 
-import cs4624.common.OptionalArgument
 import cs4624.microblog.sentiment.{Bearish, Bullish}
 import cs4624.microblog.{MicroblogAuthor, MicroblogPost}
 import org.apache.spark.SparkContext
@@ -16,36 +15,45 @@ class SparkHBaseMicroblogDataSource(table: SparkHBaseMicroblogDataSource.Table)
                                    (implicit val sc: SparkContext)
   extends MicroblogDataSource {
 
-  override def query(startTime: OptionalArgument[Instant],
-                     endTime: OptionalArgument[Instant]): Iterator[MicroblogPost] = {
+  override def query(startTime: Option[Instant],
+                     endTime: Option[Instant]): Iterator[MicroblogPost] = {
     queryRDD(startTime, endTime).toLocalIterator
   }
 
-  def queryRDD(startTime: OptionalArgument[Instant] = None,
-               endTime: OptionalArgument[Instant] = None): RDD[MicroblogPost] = {
-    sc.hbaseTable[(String, String, String, String, Option[String], Option[String])](table.name)
+  def queryRDD(startTime: Option[Instant] = None,
+               endTime: Option[Instant] = None): RDD[MicroblogPost] = {
+    val select = sc.hbaseTable[(String, String, String, String, Option[String], Option[String])](table.name)
       .select("base_data:timestamp", "base_data:text", "base_data:judgeid",
         "options:sentiment", "options:symbol")
-      .map { case (row, timestamp, text, judgeid, sentiment, symbol) =>
-        MicroblogPost(
-          id = row,
-          text = text,
-          author = MicroblogAuthor(judgeid),
-          sentiment = sentiment match {
-            case Some("Bullish") => Some(Bullish)
-            case Some("Bearish") => Some(Bearish)
-            case _ => None
-          },
-          time = Instant.parse(timestamp),
-          symbols = symbol.getOrElse("").split("::::").toSet
-        )
-      }.filter(_.time.isAfter(startTime.getOrElse(Instant.MIN)))
-      .filter(_.time.isBefore(endTime.getOrElse(Instant.MAX)))
+    val startRowSet = startTime match {
+      case Some(time) =>
+        select.withStartRow(time.toEpochMilli + "-")
+      case None => select
+    }
+    val endRowSet = endTime match {
+      case Some(time) =>
+        startRowSet.withStopRow((time.toEpochMilli+1) + "-")
+      case None => startRowSet
+    }
+    endRowSet.map { case (row, timestamp, text, judgeid, sentiment, symbol) =>
+      MicroblogPost(
+        id = row.substring(row.indexOf("-")+1),
+        text = text,
+        author = MicroblogAuthor(judgeid),
+        sentiment = sentiment match {
+          case Some("Bullish") => Some(Bullish)
+          case Some("Bearish") => Some(Bearish)
+          case _ => None
+        },
+        time = Instant.parse(timestamp),
+        symbols = symbol.getOrElse("").split("::::").toSet
+      )
+    }
   }
 
   def write(posts: RDD[MicroblogPost]) = {
     posts.map(post => {
-      (post.id,
+      (post.time.toEpochMilli + "-" + post.id,
         post.time.toString,
         post.text,
         post.author.id,
@@ -62,6 +70,6 @@ class SparkHBaseMicroblogDataSource(table: SparkHBaseMicroblogDataSource.Table)
 object SparkHBaseMicroblogDataSource {
   sealed trait Table { def name: String }
   case object Default extends Table {
-    override def name = "stocktwits_microblogs"
+    override def name = "stocktwits_timestamped"
   }
 }

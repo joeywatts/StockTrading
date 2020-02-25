@@ -15,6 +15,6 @@ case class StockPriceEvent(stockPrice: StockPrice) extends TradingEvent {
 
 class StockPriceEventEmitter(val symbol: String, val stockPriceDataSource: StockPriceDataSource) extends TradingEventEmitter {
   override def eventsForInterval(start: Instant, end: Instant): Iterator[TradingEvent] = {
-    stockPriceDataSource.query(symbol, start, end).map(StockPriceEvent)
+    stockPriceDataSource.query(symbol, Some(start), Some(end)).map(StockPriceEvent)
   }
 }

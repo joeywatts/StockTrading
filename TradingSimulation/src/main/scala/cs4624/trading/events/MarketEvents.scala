@@ -1,6 +1,6 @@
 package cs4624.trading.events
 
-import scala.concurrent.Await
+import scala.concurrent._
 
 import java.time._
 
@@ -26,8 +26,20 @@ class MarketEventsEmitter(eodStockQuoteAPI: EODStockQuoteAPI = new YahooFinanceA
     val endDate = endDateTime.toLocalDate
     import scala.concurrent.duration._
     import scala.concurrent.ExecutionContext.Implicits.global
-    val quotes = Await.result(eodStockQuoteAPI.getQuotes("DOW", startDate, endDate), Duration.Inf)
-    quotes.map(_.date).flatMap(date => MarketOpen(date.atTime(openTime).toInstant) :: MarketClose(date.atTime(closeTime).toInstant) :: Nil).sortBy(_.time.toEpochMilli)
-      .dropWhile(_.time.isBefore(start)).reverse.dropWhile(_.time.isAfter(end)).reverse.toIterator
+    val years = startDate.getYear to endDate.getYear
+    val future = Future.sequence(years.map { year =>
+      eodStockQuoteAPI.getQuotes("DOW",
+        LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31)).map { quotes =>
+
+        val events: Seq[TradingEvent] = quotes.map(_.date).flatMap(date => {
+          MarketOpen(date.atTime(openTime).toInstant) ::
+          MarketClose(date.atTime(closeTime).toInstant) :: Nil
+        })
+        events.dropWhile(_.time.isBefore(start))
+          .reverse.dropWhile(_.time.isAfter(end)).reverse
+      }
+    })
+    val events = Await.result(future, Duration.Inf)
+    events.flatten.sortBy(_.time.toEpochMilli).iterator
   }
 }

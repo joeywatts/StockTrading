@@ -1,7 +1,6 @@
 package cs4624.portfolio
 import java.time._
 
-import cs4624.common.OptionalArgument
 import cs4624.portfolio.error.TransactionError
 import cs4624.prices.sources.StockPriceDataSource
 import cs4624.prices.splits.StockSplit
@@ -76,17 +75,14 @@ case class Portfolio(time: Instant, cash: BigDecimal,
   def withSharesAtTargetAmount(time: Instant, symbol: String, targetAmount: Int): Either[Portfolio, TransactionError] = {
     val result = this.withTime(time)
     val amountDifferential = targetAmount - stocks(symbol)
-    val cashBeforeTransaction = cash - transactionFee
     if (amountDifferential == 0) Left(result)
-    else if (cashBeforeTransaction < 0)
-      Right(TransactionError(result, s"Not enough cash to cover the transaction fee"))
     else if (targetAmount < 0)
       Right(TransactionError(result, s"Attempted to sell shares of $$$symbol that are not owned."))
     else
       currentStockPrice(symbol, time = time) match {
         case Some(stockPrice) =>
           val cashDifferential = amountDifferential * stockPrice
-          val cashAfterTransaction = cashBeforeTransaction - cashDifferential
+          val cashAfterTransaction = cash - cashDifferential - transactionFee
           if (cashAfterTransaction < 0)
             Right(TransactionError(result, s"Not enough cash remaining to buy $amountDifferential shares of $$$symbol."))
           else

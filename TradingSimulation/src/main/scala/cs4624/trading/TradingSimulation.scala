@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit
 
 import cs4624.trading.events.{MarketEventsEmitter, MarketOpen, StockPriceEventEmitter, MicroblogEventEmitter}
 import cs4624.common.spark.SparkContextManager._
+import cs4624.common.hbase.HBaseConnectionManager._
 import cs4624.microblog.sentiment.SentimentAnalysisModel
 import cs4624.microblog.sources.HBaseMicroblogDataSource
 import cs4624.microblog.sources.HBaseMicroblogDataSource.Default
@@ -15,14 +16,12 @@ import cs4624.prices.sources.HBaseStockPriceDataSource.YahooFinance
 import cs4624.prices.splits.StockSplit
 import cs4624.prices.splits.sources.HardcodedStockSplitDataSource
 import cs4624.trading.strategies._
-import org.apache.hadoop.hbase.client.ConnectionFactory
 import cs4624.common.App
 import cs4624.common.Http.client
 import org.apache.log4j.LogManager
 
 object TradingSimulation extends App {
 
-  implicit val hbaseConnection = ConnectionFactory.createConnection()
   val log = LogManager.getLogger("TradingSimulation")
 
   val symbols = Set("AAPL", "FB", "GILD", "KNDI", "MNKD", "NQ", "PLUG", "QQQ", "SPY", "TSLA", "VRNG")
@@ -33,10 +32,10 @@ object TradingSimulation extends App {
   ).map(split => ((split.symbol, split.date), split)).toMap)
   val hbaseMicroblogDataSource = new HBaseMicroblogDataSource(Default)
 
-  SentimentAnalysisModel.load("../cs4624_sentiment_analysis_model") match {
+  SentimentAnalysisModel.load("../cs4624_sentiment_analysis_model3") match {
     case Some(sentimentAnalysisModel) =>
-      val start = OffsetDateTime.of(2014, 1, 1, 7, 59, 59, 0, ZoneOffset.UTC).toInstant
-      val end = OffsetDateTime.of(2014, 12, 31, 23, 59, 59, 999999999, ZoneOffset.UTC).toInstant
+      val start = OffsetDateTime.of(2014, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC).toInstant
+      val end = OffsetDateTime.of(2015, 12, 31, 23, 59, 59, 999999999, ZoneOffset.UTC).toInstant
       val baselineStrategies = symbols.toSeq.map(s =>
         new BaselineStrategy(s, Portfolio(start, 100000, transactionFee = BigDecimal("6.0")),
           hBaseStockPriceDataSource)
@@ -73,6 +72,7 @@ object TradingSimulation extends App {
       val printWriter = new PrintWriter("../results.csv")
       val headerLine = strategies.keys.toSeq.sorted.foldLeft("Time") { case (line, name) => line + "," + name }
       printWriter.println(headerLine)
+      log.info("Starting simulation....")
       context.run {
         case (MarketOpen(time), _) =>
           val portfolioValues = strategies.mapValues(_.map { _.currentPortfolio.portfolioValue }.sum)
